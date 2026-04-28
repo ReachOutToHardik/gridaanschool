@@ -282,11 +282,22 @@ function AssignmentModal({ students, classId, onClose }: { students: Student[], 
                   value={formData.studentId}
                   onChange={(e) => setFormData({...formData, studentId: e.target.value})}
                 >
-                    <option value="all">All Students</option>
+                  <option value="all">All Students</option>
                   {students.map(s => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>
+                <button
+                  type="button"
+                  onClick={() => setFormData((current) => ({ ...current, studentId: 'all' }))}
+                  className={`w-full mt-2 rounded-xl border px-4 py-2 text-sm font-medium transition-colors ${
+                    formData.studentId === 'all'
+                      ? 'border-zinc-900 bg-zinc-900 text-white'
+                      : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
+                  }`}
+                >
+                  Assign to All Students
+                </button>
               </div>
               
               <div className="space-y-2">
