@@ -1,13 +1,13 @@
 # Gridaan School
 
-Gridaan School is a Firebase-backed classroom management app for teachers. It provides sign-in, class management, student records, and assignment tracking in a single dashboard.
+Gridaan School is a Firebase-backed faculty portal for managing classes, students, and assignments in one place.
 
 ## Features
 
 - Google sign-in through Firebase Auth
 - Email and password sign-in through Firebase Auth
 - Firestore-backed classes, students, and assignments
-- Whitelist-based access control for approved accounts only
+- Approved-account access control
 
 ## Getting Started
 

@@ -1,6 +1,6 @@
 {
   "name": "Gridaan School",
-  "description": "Professional student management and assignment tracking for Gridaan School.",
+  "description": "Faculty portal for class, student, and assignment management.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

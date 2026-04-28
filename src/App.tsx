@@ -98,7 +98,7 @@ export default function App() {
               <GraduationCap className="text-white" size={24} />
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Gridaan School</h1>
-            <p className="text-zinc-500 text-sm">Secure classroom management for approved accounts</p>
+            <p className="text-zinc-500 text-sm">Faculty portal for classes, students, and assignments</p>
           </div>
 
           {authError && (
@@ -113,7 +113,7 @@ export default function App() {
             className="w-full py-3 bg-zinc-900 text-white rounded-xl font-medium hover:bg-zinc-800 transition-all flex items-center justify-center gap-3 shadow-lg shadow-zinc-200 disabled:opacity-70"
           >
             <ShieldCheck size={18} />
-            {isSigningIn ? 'Connecting...' : 'Continue with Google'}
+            {isSigningIn ? 'Connecting...' : 'Sign in with Google'}
           </button>
 
           <div className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.28em] text-zinc-300">
@@ -124,7 +124,7 @@ export default function App() {
 
           <form className="space-y-4" onSubmit={handleEmailSignIn}>
             <label className="block space-y-2">
-              <span className="text-[11px] font-bold uppercase tracking-widest text-zinc-400">Email</span>
+              <span className="text-[11px] font-bold uppercase tracking-widest text-zinc-400">Email access</span>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
                 <input
@@ -134,7 +134,7 @@ export default function App() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="input-base w-full pl-10"
-                  placeholder="teacher@example.com"
+                  placeholder="name@school.edu"
                 />
               </div>
             </label>
@@ -150,7 +150,7 @@ export default function App() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="input-base w-full pl-10"
-                  placeholder="Enter your approved password"
+                  placeholder="Enter your password"
                 />
               </div>
             </label>
@@ -161,12 +161,12 @@ export default function App() {
               className="w-full py-3 bg-white border border-zinc-200 rounded-xl font-medium text-zinc-900 hover:bg-zinc-50 transition-all flex items-center justify-center gap-3 disabled:opacity-70"
             >
               <ArrowRight size={18} />
-              {isSigningIn ? 'Signing in...' : 'Continue with Email'}
+              {isSigningIn ? 'Signing in...' : 'Sign in with Email'}
             </button>
           </form>
 
           <p className="text-center text-[11px] text-zinc-400 uppercase tracking-widest font-medium">
-            Approved accounts only
+            Restricted faculty access
           </p>
         </motion.div>
       </div>
@@ -192,7 +192,7 @@ export default function App() {
             <div className="hidden sm:flex items-center gap-3 pr-6 border-r border-zinc-100">
                <div className="text-right">
                  <p className="text-xs font-bold truncate max-w-[120px]">{user.displayName}</p>
-                 <p className="text-[10px] text-zinc-400 uppercase tracking-wider">Faculty</p>
+                 <p className="text-[10px] text-zinc-400 uppercase tracking-wider">Faculty portal</p>
                </div>
                <div className="w-8 h-8 bg-zinc-100 rounded-full flex items-center justify-center text-[10px] font-bold text-zinc-500">
                  {user.displayName?.split(' ').map(n => n[0]).join('') || 'T'}
