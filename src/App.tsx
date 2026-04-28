@@ -126,14 +126,14 @@ export default function App() {
             <label className="block space-y-2">
               <span className="text-[11px] font-bold uppercase tracking-widest text-zinc-400">Email access</span>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
                 <input
                   required
                   type="email"
                   autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="input-base w-full pl-10"
+                  className="input-base w-full pl-12"
                   placeholder="name@school.edu"
                 />
               </div>
@@ -142,20 +142,21 @@ export default function App() {
             <label className="block space-y-2">
               <span className="text-[11px] font-bold uppercase tracking-widest text-zinc-400">Password</span>
               <div className="relative">
-                <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
+                <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
                 <input
                   required
                   type="password"
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="input-base w-full pl-10"
+                  className="input-base w-full pl-12"
                   placeholder="Enter your password"
                 />
               </div>
             </label>
 
-            <button
+            <div className="space-y-3">
+              <button
               type="submit"
               disabled={isSigningIn}
               className="w-full py-3 bg-white border border-zinc-200 rounded-xl font-medium text-zinc-900 hover:bg-zinc-50 transition-all flex items-center justify-center gap-3 disabled:opacity-70"
@@ -163,6 +164,30 @@ export default function App() {
               <ArrowRight size={18} />
               {isSigningIn ? 'Signing in...' : 'Sign in with Email'}
             </button>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  // Demo credentials (kept in sync with allowed list)
+                  const demoEmail = 'sample.teacher@gridaan.school';
+                  const demoPassword = 'Gridaan@2026!';
+                  setAuthError(null);
+                  setIsSigningIn(true);
+                  try {
+                    setEmail(demoEmail);
+                    setPassword(demoPassword);
+                    await loginWithEmailPassword(demoEmail, demoPassword);
+                  } catch (err) {
+                    setAuthError(err instanceof Error ? err.message : 'Demo sign-in failed');
+                  } finally {
+                    setIsSigningIn(false);
+                  }
+                }}
+                className="w-full py-3 border border-zinc-200 rounded-xl text-zinc-700 bg-zinc-50 hover:bg-zinc-100 transition-all flex items-center justify-center gap-3"
+              >
+                Use demo credentials
+              </button>
+            </div>
           </form>
 
           <p className="text-center text-[11px] text-zinc-400 uppercase tracking-widest font-medium">
