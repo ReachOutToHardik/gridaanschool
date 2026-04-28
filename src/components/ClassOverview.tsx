@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import React from 'react';
 import { 
   collection, 
@@ -26,6 +26,7 @@ export default function ClassOverview({ onSelectClass }: ClassOverviewProps) {
   const [className, setClassName] = useState('');
   const [classDesc, setClassDesc] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const hasAutoSeededDemo = useRef(false);
 
   useEffect(() => {
     if (!auth.currentUser) return;
@@ -41,6 +42,20 @@ export default function ClassOverview({ onSelectClass }: ClassOverviewProps) {
         classData.push({ id: doc.id, ...doc.data() } as Class);
       });
       setClasses(classData.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
+
+      const isDemoAccount = auth.currentUser?.email?.toLowerCase() === 'sample.teacher@gridaan.school';
+      const demoSeedKey = 'gridaan-demo-seeded';
+
+      if (
+        isDemoAccount &&
+        classData.length === 0 &&
+        !hasAutoSeededDemo.current &&
+        localStorage.getItem(demoSeedKey) !== 'true'
+      ) {
+        hasAutoSeededDemo.current = true;
+        localStorage.setItem(demoSeedKey, 'true');
+        void handleSeedData();
+      }
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'classes');
     });
