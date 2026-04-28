@@ -1,0 +1,77 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isApprovedEmail() {
+      return isSignedIn() && (
+        request.auth.token.email == 'sample.teacher@gridaan.school' ||
+        request.auth.token.email == 'joshi14hardik@gmail.com'
+      );
+    }
+
+    function isTeacher(data) {
+      return isApprovedEmail() && data.teacherId == request.auth.uid;
+    }
+
+    // Class Rules
+    function isValidClass(data) {
+      return data.keys().hasAll(['name', 'teacherId', 'createdAt'])
+          && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+          && data.teacherId == request.auth.uid
+          && data.createdAt == request.time;
+    }
+
+    match /classes/{classId} {
+      allow list: if isApprovedEmail() && resource.data.teacherId == request.auth.uid;
+      allow get: if isApprovedEmail() && resource.data.teacherId == request.auth.uid;
+      allow create: if isApprovedEmail() && isValidClass(request.resource.data);
+      allow update: if isApprovedEmail() && isTeacher(resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'description', 'studentCount']);
+      allow delete: if isApprovedEmail() && isTeacher(resource.data);
+    }
+
+    // Student Rules
+    function isValidStudent(data) {
+      return data.keys().hasAll(['name', 'email', 'classId', 'teacherId', 'createdAt'])
+          && data.name is string && data.name.size() > 0
+          && data.classId is string
+          && data.teacherId == request.auth.uid
+          && data.createdAt == request.time;
+    }
+
+    match /students/{studentId} {
+      allow list: if isApprovedEmail() && resource.data.teacherId == request.auth.uid;
+      allow get: if isApprovedEmail() && resource.data.teacherId == request.auth.uid;
+      allow create: if isApprovedEmail() && isValidStudent(request.resource.data);
+      allow update: if isApprovedEmail() && isTeacher(resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'email', 'classId']);
+      allow delete: if isApprovedEmail() && isTeacher(resource.data);
+    }
+
+    // Assignment Rules
+    function isValidAssignment(data) {
+      return data.keys().hasAll(['title', 'classId', 'studentId', 'teacherId', 'status', 'createdAt'])
+          && data.teacherId == request.auth.uid
+          && data.createdAt == request.time;
+    }
+
+    match /assignments/{assignmentId} {
+      allow list: if isApprovedEmail() && resource.data.teacherId == request.auth.uid;
+      allow get: if isApprovedEmail() && resource.data.teacherId == request.auth.uid;
+      allow create: if isApprovedEmail() && isValidAssignment(request.resource.data);
+      allow update: if isApprovedEmail() && isTeacher(resource.data)
+          && (
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'completedAt'])
+            || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'description', 'dueDate'])
+          );
+      allow delete: if isApprovedEmail() && isTeacher(resource.data);
+    }
+  }
+}
