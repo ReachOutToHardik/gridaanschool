@@ -9,6 +9,7 @@ import {
   deleteDoc, 
   doc, 
   updateDoc, 
+  writeBatch,
   serverTimestamp 
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
@@ -193,24 +194,46 @@ function AssignmentModal({ students, classId, onClose }: { students: Student[], 
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    studentId: students[0]?.id || '',
+    studentId: 'all',
     dueDate: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth.currentUser || !formData.studentId) return;
+    if (!auth.currentUser) return;
     setIsSubmitting(true);
 
     try {
-      await addDoc(collection(db, 'assignments'), {
-        ...formData,
+      const assignmentPayload = {
+        title: formData.title,
+        description: formData.description,
         classId: classId,
         teacherId: auth.currentUser.uid,
-        status: 'pending',
-        createdAt: serverTimestamp()
-      });
+        status: 'pending' as const,
+        dueDate: formData.dueDate || null,
+        createdAt: serverTimestamp(),
+      };
+
+      if (formData.studentId === 'all') {
+        const batch = writeBatch(db);
+
+        students.forEach((student) => {
+          const assignmentRef = doc(collection(db, 'assignments'));
+          batch.set(assignmentRef, {
+            ...assignmentPayload,
+            studentId: student.id,
+          });
+        });
+
+        await batch.commit();
+      } else {
+        await addDoc(collection(db, 'assignments'), {
+          ...assignmentPayload,
+          studentId: formData.studentId,
+        });
+      }
+
       onClose();
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'assignments');
@@ -259,7 +282,7 @@ function AssignmentModal({ students, classId, onClose }: { students: Student[], 
                   value={formData.studentId}
                   onChange={(e) => setFormData({...formData, studentId: e.target.value})}
                 >
-                  <option value="" disabled>Select Student</option>
+                    <option value="all">All Students</option>
                   {students.map(s => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
@@ -301,7 +324,7 @@ function AssignmentModal({ students, classId, onClose }: { students: Student[], 
               disabled={isSubmitting || students.length === 0}
               className="flex-[2] btn-primary justify-center py-3"
             >
-              {isSubmitting ? 'Syncing...' : students.length === 0 ? 'No Students' : 'Issue Assignment'}
+              {isSubmitting ? 'Syncing...' : students.length === 0 ? 'No Students' : formData.studentId === 'all' ? 'Issue to All Students' : 'Issue Assignment'}
             </button>
           </div>
         </form>
