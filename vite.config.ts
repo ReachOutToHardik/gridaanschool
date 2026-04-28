@@ -18,6 +18,9 @@ export default defineConfig(({mode}) => {
     server: {
       // Keep hot reload opt-out available for constrained environments.
       hmr: process.env.DISABLE_HMR !== 'true',
+      // Allow the Render host so deployed site can access the dev server origin when needed.
+      // Add any additional hostnames here if you use other deploy targets.
+      allowedHosts: ['gridaanschool.onrender.com'],
     },
   };
 });
