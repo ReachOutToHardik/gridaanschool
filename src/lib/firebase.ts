@@ -69,10 +69,28 @@ export async function loginWithEmailPassword(email: string, password: string) {
   }
 
   try {
-    return await signInWithEmailAndPassword(auth, normalizedEmail, password);
+    return await createUserWithEmailAndPassword(auth, normalizedEmail, password);
   } catch (error) {
-    if (error instanceof Error && 'code' in error && (error as { code?: string }).code === 'auth/user-not-found') {
-      return createUserWithEmailAndPassword(auth, normalizedEmail, password);
+    const errorCode = error instanceof Error && 'code' in error ? (error as { code?: string }).code : undefined;
+
+    if (errorCode === 'auth/email-already-in-use' || errorCode === 'auth/credential-already-in-use') {
+      return signInWithEmailAndPassword(auth, normalizedEmail, password);
+    }
+
+    if (errorCode === 'auth/invalid-credential' || errorCode === 'auth/user-not-found') {
+      try {
+        return await createUserWithEmailAndPassword(auth, normalizedEmail, password);
+      } catch (createError) {
+        const createErrorCode = createError instanceof Error && 'code' in createError
+          ? (createError as { code?: string }).code
+          : undefined;
+
+        if (createErrorCode === 'auth/email-already-in-use' || createErrorCode === 'auth/credential-already-in-use') {
+          return signInWithEmailAndPassword(auth, normalizedEmail, password);
+        }
+
+        throw createError;
+      }
     }
 
     throw error;
