@@ -1,37 +1,41 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import React from 'react';
 import { 
-  collection, 
-  query, 
-  where, 
-  onSnapshot, 
-  addDoc, 
-  deleteDoc, 
-  doc, 
-  updateDoc, 
-  writeBatch,
-  serverTimestamp 
+  collection, query, where, onSnapshot, addDoc, deleteDoc, 
+  doc, updateDoc, writeBatch, serverTimestamp 
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { Assignment, Student, OperationType } from '../types';
 import { handleFirestoreError } from '../lib/utils';
-import { ClipboardList, Plus, Calendar, CheckCircle2, Circle, Trash2, X } from 'lucide-react';
+import { 
+  ClipboardList, Plus, Calendar, CheckCircle2, Trash2, X, 
+  ChevronLeft, ChevronRight, Users 
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface AssignmentManagementProps {
   classId: string;
 }
 
+interface AssignmentGroup {
+  title: string;
+  assignments: Assignment[];
+  total: number;
+  completed: number;
+  description?: string;
+  dueDate?: string;
+  createdAt: any;
+}
+
 export default function AssignmentManagement({ classId }: AssignmentManagementProps) {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [filterStudentId, setFilterStudentId] = useState<string>('all');
+  const [selectedGroupTitle, setSelectedGroupTitle] = useState<string | null>(null);
 
   useEffect(() => {
     if (!auth.currentUser || !classId) return;
 
-    // Fetch Students for this class
     const studentQ = query(
       collection(db, 'students'),
       where('teacherId', '==', auth.currentUser.uid),
@@ -43,7 +47,6 @@ export default function AssignmentManagement({ classId }: AssignmentManagementPr
       setStudents(data);
     });
 
-    // Fetch Assignments for this class
     const assignmentQ = query(
       collection(db, 'assignments'),
       where('teacherId', '==', auth.currentUser.uid),
@@ -57,11 +60,37 @@ export default function AssignmentManagement({ classId }: AssignmentManagementPr
       handleFirestoreError(error, OperationType.LIST, 'assignments');
     });
 
-    return () => {
-      unsubStudents();
-      unsubAssignments();
-    };
+    return () => { unsubStudents(); unsubAssignments(); };
   }, [classId]);
+
+  // Group assignments by title
+  const groupedAssignments = useMemo(() => {
+    const groups = new Map<string, Assignment[]>();
+    assignments.forEach(a => {
+      const existing = groups.get(a.title) || [];
+      existing.push(a);
+      groups.set(a.title, existing);
+    });
+    return Array.from(groups.entries()).map(([title, items]) => ({
+      title,
+      assignments: items,
+      total: items.length,
+      completed: items.filter(a => a.status === 'completed').length,
+      description: items[0].description,
+      dueDate: items[0].dueDate,
+      createdAt: items[0].createdAt,
+    })).sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+  }, [assignments]);
+
+  // Derive selected group from live data
+  const selectedGroup = selectedGroupTitle 
+    ? groupedAssignments.find(g => g.title === selectedGroupTitle) || null
+    : null;
+
+  // If selected group was deleted, go back
+  useEffect(() => {
+    if (selectedGroupTitle && !selectedGroup) setSelectedGroupTitle(null);
+  }, [selectedGroup, selectedGroupTitle]);
 
   const toggleStatus = async (assignment: Assignment) => {
     const newStatus = assignment.status === 'pending' ? 'completed' : 'pending';
@@ -75,8 +104,20 @@ export default function AssignmentManagement({ classId }: AssignmentManagementPr
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this task?')) return;
+  const handleDeleteGroup = async (group: AssignmentGroup) => {
+    if (!confirm(`Delete "${group.title}" for all ${group.total} students?`)) return;
+    try {
+      const batch = writeBatch(db);
+      group.assignments.forEach(a => batch.delete(doc(db, 'assignments', a.id)));
+      await batch.commit();
+      setSelectedGroupTitle(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'assignments');
+    }
+  };
+
+  const handleDeleteSingle = async (id: string) => {
+    if (!confirm('Remove this student\'s assignment?')) return;
     try {
       await deleteDoc(doc(db, 'assignments', id));
     } catch (error) {
@@ -84,98 +125,197 @@ export default function AssignmentManagement({ classId }: AssignmentManagementPr
     }
   };
 
-  const filteredAssignments = filterStudentId === 'all' 
-    ? assignments 
-    : assignments.filter(a => a.studentId === filterStudentId);
+  // ─── DETAIL VIEW ───
+  if (selectedGroup) {
+    const progress = selectedGroup.total > 0 
+      ? Math.round((selectedGroup.completed / selectedGroup.total) * 100) 
+      : 0;
 
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setSelectedGroupTitle(null)}
+              className="p-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-400 hover:text-zinc-900 hover:border-zinc-900 transition-all shadow-sm"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <div className="space-y-0.5">
+              <h2 className="text-xl font-bold tracking-tight text-zinc-900">{selectedGroup.title}</h2>
+              <p className="text-zinc-500 text-sm">
+                {selectedGroup.completed}/{selectedGroup.total} students completed
+              </p>
+            </div>
+          </div>
+          <button 
+            onClick={() => handleDeleteGroup(selectedGroup)}
+            className="btn-secondary text-red-600 hover:bg-red-50 hover:border-red-200"
+          >
+            <Trash2 size={14} />
+            Delete All
+          </button>
+        </div>
+
+        {/* Info + Progress */}
+        <div className="glass-panel p-6 space-y-4">
+          {selectedGroup.description && (
+            <p className="text-sm text-zinc-600 leading-relaxed">{selectedGroup.description}</p>
+          )}
+          <div className="flex items-center gap-4 flex-wrap">
+            {selectedGroup.dueDate && (
+              <div className="flex items-center gap-2 text-xs font-medium text-zinc-400">
+                <Calendar size={14} />
+                Due {new Date(selectedGroup.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+              </div>
+            )}
+            <div className="flex items-center gap-2 text-xs font-medium text-zinc-400">
+              <Users size={14} />
+              {selectedGroup.total} students assigned
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs font-semibold">
+              <span className="text-zinc-500">Progress</span>
+              <span className="text-zinc-900">{progress}%</span>
+            </div>
+            <div className="h-2 bg-zinc-100 rounded-full overflow-hidden">
+              <motion.div
+                className={`h-full rounded-full ${progress === 100 ? 'bg-emerald-500' : 'bg-zinc-900'}`}
+                initial={{ width: 0 }}
+                animate={{ width: `${progress}%` }}
+                transition={{ duration: 0.5, ease: 'easeOut' }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Student Checklist */}
+        <div className="glass-panel">
+          <div className="px-6 py-4 border-b border-zinc-100 bg-zinc-50/50">
+            <h3 className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Student Progress</h3>
+          </div>
+          <div className="divide-y divide-zinc-100">
+            {selectedGroup.assignments.map((assignment) => {
+              const student = students.find(s => s.id === assignment.studentId);
+              const isCompleted = assignment.status === 'completed';
+              return (
+                <div 
+                  key={assignment.id}
+                  className="px-6 py-4 flex items-center justify-between group hover:bg-zinc-50/50 transition-colors"
+                >
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={() => toggleStatus(assignment)}
+                      className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-all ${
+                        isCompleted 
+                          ? 'bg-emerald-500 border-emerald-500 text-white' 
+                          : 'bg-white border-zinc-200 hover:border-zinc-400'
+                      }`}
+                    >
+                      {isCompleted && <CheckCircle2 size={16} />}
+                    </button>
+                    <div>
+                      <p className={`font-semibold text-sm ${isCompleted ? 'text-zinc-400 line-through' : 'text-zinc-900'}`}>
+                        {student?.name || 'Unknown Student'}
+                      </p>
+                      <p className="text-xs text-zinc-400">{student?.email}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${
+                      isCompleted ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+                    }`}>
+                      {isCompleted ? 'Done' : 'Pending'}
+                    </span>
+                    <button
+                      onClick={() => handleDeleteSingle(assignment.id)}
+                      className="p-1.5 text-zinc-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── LIST VIEW ───
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold tracking-tight text-zinc-900">Assignments</h2>
-          <p className="text-zinc-500 text-sm">{assignments.filter(a => a.status === 'pending').length} items outstanding</p>
+          <p className="text-zinc-500 text-sm">
+            {groupedAssignments.length} {groupedAssignments.length === 1 ? 'task' : 'tasks'} · {assignments.filter(a => a.status === 'pending').length} pending
+          </p>
         </div>
-        <div className="flex items-center gap-3">
-          <select 
-            value={filterStudentId}
-            onChange={(e) => setFilterStudentId(e.target.value)}
-            className="input-base bg-zinc-50 text-zinc-600 appearance-none cursor-pointer"
-          >
-            <option value="all">Filter: All Students</option>
-            {students.map(s => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-          <button 
-            onClick={() => setIsModalOpen(true)}
-            className="btn-primary"
-          >
-            <Plus size={16} />
-            Assign Task
-          </button>
-        </div>
+        <button onClick={() => setIsModalOpen(true)} className="btn-primary">
+          <Plus size={16} />
+          Assign Task
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredAssignments.length === 0 ? (
-          <div className="col-span-full py-20 bg-white border border-dashed border-zinc-200 rounded-3xl flex flex-col items-center justify-center text-zinc-400 space-y-3 shadow-sm">
-             <ClipboardList className="w-10 h-10 opacity-20" />
-             <p className="text-sm font-medium">No active tasks for this class</p>
-          </div>
-        ) : (
-          filteredAssignments.map((assignment) => (
-            <motion.div 
-              key={assignment.id}
-              layout
-              className={`glass-panel flex flex-col ${assignment.status === 'completed' ? 'opacity-60 bg-zinc-50/50' : ''}`}
-            >
-              <div className="p-6 flex-1 space-y-4">
-                <div className="flex justify-between items-start gap-3">
-                  <div className="space-y-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full uppercase tracking-wider">
-                        {students.find(s => s.id === assignment.studentId)?.name || 'Student'}
-                      </span>
-                    </div>
-                    <h4 className="text-base font-bold text-zinc-900 truncate tracking-tight py-1">
-                      {assignment.title}
-                    </h4>
-                  </div>
-                  <button 
-                    onClick={() => toggleStatus(assignment)}
-                    className={`flex-shrink-0 w-6 h-6 rounded-lg flex items-center justify-center border-2 transition-all ${
-                      assignment.status === 'completed' 
-                        ? 'bg-green-500 border-green-500 text-white' 
-                        : 'bg-white border-zinc-200 text-transparent hover:border-zinc-400'
-                    }`}
-                  >
-                    <CheckCircle2 size={14} className={assignment.status === 'completed' ? 'opacity-100' : 'opacity-0'} />
-                  </button>
-                </div>
-
-                {assignment.description && (
-                  <p className="text-xs text-zinc-500 leading-relaxed line-clamp-3">
-                    {assignment.description}
-                  </p>
-                )}
-              </div>
-
-              <div className="px-6 py-4 border-t border-zinc-100 flex items-center justify-between bg-zinc-50/20">
-                <div className="flex items-center gap-2 text-xs font-medium text-zinc-400">
-                  <Calendar size={14} />
-                  {assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'Flexible'}
-                </div>
-                <button 
-                  onClick={() => handleDelete(assignment.id)}
-                  className="p-1.5 text-zinc-300 hover:text-red-500 transition-colors"
+      {groupedAssignments.length === 0 ? (
+        <div className="py-20 bg-white border border-dashed border-zinc-200 rounded-3xl flex flex-col items-center justify-center text-zinc-400 space-y-3 shadow-sm">
+          <ClipboardList className="w-10 h-10 opacity-20" />
+          <p className="text-sm font-medium">No active tasks for this class</p>
+        </div>
+      ) : (
+        <div className="glass-panel">
+          <div className="divide-y divide-zinc-100">
+            {groupedAssignments.map((group) => {
+              const progress = group.total > 0 ? Math.round((group.completed / group.total) * 100) : 0;
+              return (
+                <div
+                  key={group.title}
+                  onClick={() => setSelectedGroupTitle(group.title)}
+                  className="px-6 py-5 flex items-center justify-between cursor-pointer hover:bg-zinc-50/50 transition-colors group"
                 >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            </motion.div>
-          ))
-        )}
-      </div>
+                  <div className="flex items-center gap-5 min-w-0 flex-1">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                      progress === 100 ? 'bg-emerald-50 text-emerald-500' : 'bg-zinc-100 text-zinc-400'
+                    }`}>
+                      {progress === 100 ? <CheckCircle2 size={20} /> : <ClipboardList size={18} />}
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <div className="flex items-center gap-3">
+                        <h3 className="font-semibold text-zinc-900 truncate">{group.title}</h3>
+                        <span className="text-[10px] font-bold text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded-full flex-shrink-0">
+                          {group.completed}/{group.total}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4 text-xs text-zinc-400">
+                        {group.dueDate && (
+                          <span className="flex items-center gap-1">
+                            <Calendar size={12} />
+                            {new Date(group.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                          </span>
+                        )}
+                        <span className="flex items-center gap-1">
+                          <Users size={12} />
+                          {group.total} {group.total === 1 ? 'student' : 'students'}
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full max-w-[200px] bg-zinc-100 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full transition-all duration-500 ${progress === 100 ? 'bg-emerald-500' : 'bg-zinc-900'}`}
+                          style={{ width: `${progress}%` }} 
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <ChevronRight size={18} className="text-zinc-300 group-hover:text-zinc-900 group-hover:translate-x-0.5 transition-all flex-shrink-0 ml-4" />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <AnimatePresence>
         {isModalOpen && (
@@ -190,6 +330,7 @@ export default function AssignmentManagement({ classId }: AssignmentManagementPr
   );
 }
 
+// ─── CREATE MODAL (unchanged) ───
 function AssignmentModal({ students, classId, onClose }: { students: Student[], classId: string, onClose: () => void }) {
   const [formData, setFormData] = useState({
     title: '',
@@ -217,15 +358,10 @@ function AssignmentModal({ students, classId, onClose }: { students: Student[], 
 
       if (formData.studentId === 'all') {
         const batch = writeBatch(db);
-
         students.forEach((student) => {
           const assignmentRef = doc(collection(db, 'assignments'));
-          batch.set(assignmentRef, {
-            ...assignmentPayload,
-            studentId: student.id,
-          });
+          batch.set(assignmentRef, { ...assignmentPayload, studentId: student.id });
         });
-
         await batch.commit();
       } else {
         await addDoc(collection(db, 'assignments'), {
@@ -233,7 +369,6 @@ function AssignmentModal({ students, classId, onClose }: { students: Student[], 
           studentId: formData.studentId,
         });
       }
-
       onClose();
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'assignments');
@@ -323,11 +458,7 @@ function AssignmentModal({ students, classId, onClose }: { students: Student[], 
           </div>
 
           <div className="flex gap-3 pt-4">
-            <button 
-              type="button"
-              onClick={onClose}
-              className="flex-1 btn-secondary justify-center py-3"
-            >
+            <button type="button" onClick={onClose} className="flex-1 btn-secondary justify-center py-3">
               Cancel
             </button>
             <button 
