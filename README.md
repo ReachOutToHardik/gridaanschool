@@ -12,6 +12,7 @@ A lightweight school management web application for managing classes, students, 
 
 ### Google Sign-In
 - **Allowed:** `joshi14hardik@gmail.com`
+- **Allowed:** `gridaanhiring@gmail.com`
 
 > You can also click the **"Use demo credentials"** button on the login page to auto-fill the demo account.
 

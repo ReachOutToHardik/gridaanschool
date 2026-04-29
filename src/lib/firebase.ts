@@ -15,7 +15,7 @@ export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
-const allowedGoogleEmails = ['joshi14hardik@gmail.com'];
+const allowedGoogleEmails = ['joshi14hardik@gmail.com', 'gridaanhiring@gmail.com'];
 const allowedEmailPasswordAccounts = [
   {
     email: 'sample.teacher@gridaan.school',

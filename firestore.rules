@@ -12,7 +12,8 @@ service cloud.firestore {
     function isApprovedEmail() {
       return isSignedIn() && (
         request.auth.token.email == 'sample.teacher@gridaan.school' ||
-        request.auth.token.email == 'joshi14hardik@gmail.com'
+        request.auth.token.email == 'joshi14hardik@gmail.com' ||
+        request.auth.token.email == 'gridaanhiring@gmail.com'
       );
     }
 
