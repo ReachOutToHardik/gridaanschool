@@ -91,7 +91,7 @@ export default function App() {
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="max-w-md w-full bg-white border border-zinc-200 p-10 rounded-3xl shadow-2xl shadow-zinc-200/50 space-y-8"
+          className="max-w-md w-full bg-white border border-zinc-200 p-10 rounded-3xl shadow-2xl shadow-zinc-200/50 space-y-6"
         >
           <div className="text-center space-y-3">
             <div className="w-12 h-12 bg-zinc-900 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-zinc-200">
@@ -122,8 +122,8 @@ export default function App() {
             <span className="h-px flex-1 bg-zinc-200" />
           </div>
 
-          <form className="space-y-4" onSubmit={handleEmailSignIn}>
-            <label className="block space-y-2">
+          <form className="space-y-3" onSubmit={handleEmailSignIn}>
+            <label className="block space-y-1.5">
               <span className="text-[11px] font-bold uppercase tracking-widest text-zinc-400">Email access</span>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
@@ -139,7 +139,7 @@ export default function App() {
               </div>
             </label>
 
-            <label className="block space-y-2">
+            <label className="block space-y-1.5">
               <span className="text-[11px] font-bold uppercase tracking-widest text-zinc-400">Password</span>
               <div className="relative">
                 <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
@@ -155,7 +155,7 @@ export default function App() {
               </div>
             </label>
 
-            <div className="space-y-3">
+            <div className="space-y-2.5 pt-1">
               <button
               type="submit"
               disabled={isSigningIn}
